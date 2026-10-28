@@ -1,73 +1,77 @@
+
 let settings = {
     shorts: true,
     recommendations: true,
     comments: true
 };
 
-// Selectors for YouTube elements
 const selectors = {
     shorts: [
         "ytd-reel-shelf-renderer",
         "ytd-rich-shelf-renderer[is-shorts]"
     ],
-
     recommendations: [
         "ytd-watch-next-secondary-results-renderer"
     ],
-
     comments: [
         "ytd-comments"
     ]
 };
 
-// Hide or show elements
+// Hide or show matching elements
 function updateElement(selector, shouldHide) {
     document.querySelectorAll(selector).forEach(element => {
         element.style.display = shouldHide ? "none" : "";
     });
 }
 
-// Apply current settings
 function applySettings() {
 
-    selectors.shorts.forEach(selector => {
+    // 1. Handle Shorts
+    for (const selector of selectors.shorts) {
         updateElement(selector, settings.shorts);
-    });
+    }
 
-    selectors.recommendations.forEach(selector => {
+    // 2. Handle Recommendations
+    for (const selector of selectors.recommendations) {
         updateElement(selector, settings.recommendations);
-    });
+    }
 
-    selectors.comments.forEach(selector => {
+    // 3. Handle Comments
+    for (const selector of selectors.comments) {
         updateElement(selector, settings.comments);
-    });
+    }
+
 }
 
-// Get saved settings
+// Load settings when YouTube opens
 chrome.storage.sync.get(
     ["shorts", "recommendations", "comments"],
-    (saved) => {
-
-        settings.shorts = saved.shorts ?? true;
-        settings.recommendations = saved.recommendations ?? true;
-        settings.comments = saved.comments ?? true;
+    saved => {
+        settings = {
+            shorts: saved.shorts ?? true,
+            recommendations: saved.recommendations ?? true,
+            comments: saved.comments ?? true
+        };
 
         applySettings();
     }
 );
 
-// Listen for changes from popup
-chrome.runtime.onMessage.addListener((message) => {
+// Update immediately when popup settings change
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "sync") return;
 
-    if (message.type === "UPDATE_SETTINGS") {
-
-        settings = message.settings;
-
-        applySettings();
+    for (const key of Object.keys(settings)) {
+        if (changes[key]) {
+            settings[key] = changes[key].newValue ?? true;
+        }
     }
+
+    applySettings();
 });
 
-// YouTube dynamically adds elements
+// Handle elements YouTube adds dynamically
 const observer = new MutationObserver(() => {
     applySettings();
 });
